@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import jsPDF from 'jspdf';
 
 export default function Home() {
   const [grade, setGrade] = useState('4th');
@@ -11,6 +12,16 @@ export default function Home() {
   const [result, setResult] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [title, setTitle] = useState('');
+
+  const examples = [
+    "Fractions and Decimals",
+    "Photosynthesis",
+    "American Revolution",
+    "Multiplication Tables",
+    "States of Matter",
+    "Writing a Persuasive Essay"
+  ];
 
   const generate = async () => {
     if (!topic.trim()) {
@@ -30,10 +41,10 @@ export default function Home() {
       });
 
       const data = await res.json();
-
-      if (!res.ok) throw new Error(data.error || 'Что-то пошло не так');
+      if (!res.ok) throw new Error(data.error || 'Ошибка');
 
       setResult(data.text);
+      setTitle(`${grade} ${subject} - ${topic}`);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -41,12 +52,29 @@ export default function Home() {
     }
   };
 
+  const downloadPDF = () => {
+    const doc = new jsPDF();
+    doc.setFont("helvetica");
+    doc.setFontSize(18);
+    doc.text(title || "TeachSheet AI", 20, 20);
+    
+    const lines = doc.splitTextToSize(result, 170);
+    doc.setFontSize(12);
+    doc.text(lines, 20, 40);
+    
+    doc.save(`${title.replace(/ /g, '_') || 'teachsheet'}.pdf`);
+  };
+
+  const useExample = (example) => {
+    setTopic(example);
+  };
+
   return (
     <div className="container">
       <header>
         <h1>📝 TeachSheet AI</h1>
-        <p>Worksheet & Quiz Generator для учителей</p>
-        <p><strong>Common Core & State Standards Aligned</strong></p>
+        <p>Быстрый генератор рабочих листов и тестов для учителей</p>
+        <p><strong>Common Core • State Standards Aligned</strong></p>
       </header>
 
       <div className="form">
@@ -69,44 +97,54 @@ export default function Home() {
         <input 
           value={topic} 
           onChange={(e) => setTopic(e.target.value)} 
-          placeholder="Например: Fractions, Photosynthesis, American Revolution" 
+          placeholder="Например: Fractions..." 
         />
 
+        <div style={{margin: '10px 0'}}>
+          <small>Примеры тем:</small><br/>
+          {examples.map((ex, i) => (
+            <button key={i} onClick={() => useExample(ex)} style={{margin: '4px 4px 4px 0', padding: '6px 12px', fontSize: '13px'}}>
+              {ex}
+            </button>
+          ))}
+        </div>
+
         <label>Number of Questions</label>
-        <input 
-          type="number" 
-          value={numQuestions} 
-          onChange={(e) => setNumQuestions(Number(e.target.value))} 
-          min="5" 
-          max="20" 
-        />
+        <input type="number" value={numQuestions} onChange={(e) => setNumQuestions(Number(e.target.value))} min="5" max="20" />
 
         <label>Что генерировать?</label>
         <select value={type} onChange={(e) => setType(e.target.value)}>
           <option value="Worksheet">Worksheet</option>
           <option value="Quiz">Quiz</option>
-          <option value="Both">Both (Worksheet + Quiz)</option>
+          <option value="Both">Both</option>
         </select>
 
-        <button onClick={generate} disabled={loading}>
-          {loading ? 'Генерируем... (10–25 секунд)' : '🚀 Generate Materials'}
+        <button onClick={generate} disabled={loading} style={{marginTop: '25px'}}>
+          {loading ? 'Генерируем материал...' : '🚀 Generate Materials'}
         </button>
 
-        {error && <p style={{color: 'red', marginTop: '15px'}}>{error}</p>}
+        {error && <p style={{color: 'red'}}>{error}</p>}
       </div>
 
       {result && (
         <div className="result">
           <h2>✅ Готово!</h2>
           <div dangerouslySetInnerHTML={{ __html: result.replace(/\n/g, '<br><br>') }} />
-          <button 
-            onClick={() => navigator.clipboard.writeText(result)} 
-            style={{marginTop: '20px', padding: '12px 20px'}}
-          >
-            📋 Скопировать текст
-          </button>
+
+          <div style={{marginTop: '30px', display: 'flex', gap: '12px', flexWrap: 'wrap'}}>
+            <button onClick={downloadPDF} style={{background: '#10b981', flex: '1'}}>
+              📄 Скачать как PDF
+            </button>
+            <button onClick={() => navigator.clipboard.writeText(result)} style={{flex: '1'}}>
+              📋 Скопировать текст
+            </button>
+          </div>
         </div>
       )}
+
+      <footer style={{textAlign: 'center', padding: '40px 20px', color: '#666', fontSize: '14px'}}>
+        TeachSheet AI — сделано для учителей • Работает на Groq
+      </footer>
     </div>
   );
 }
